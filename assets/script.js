@@ -63,7 +63,7 @@
         // ...
         
         // 回车搜索
-        $('#filter-search, #filter-domain').on('keypress', function(e) {
+        $('#filter-title, #filter-search, #filter-domain').on('keypress', function(e) {
             if (e.which === 13) {
                 searchLinks(1);
             }
@@ -79,8 +79,10 @@
         
         // 重置
         $('#btn-reset').on('click', function() {
+            $('#filter-title').val('');
             $('#filter-search').val('');
             $('#filter-domain').val('');
+            $('#filter-use-regex').prop('checked', false);
             $('#links-container').html('<p class="description">请先使用搜索筛选功能查找链接</p>');
             $('#link-count').text('');
             currentLinks = [];
@@ -175,44 +177,6 @@
             applyListFilter();
         });
         
-        // 批量替换预览
-        $('#btn-replace-preview').on('click', function() {
-            batchReplacePreview();
-        });
-        
-        // 批量替换
-        $('#btn-replace').on('click', function() {
-            batchReplace();
-        });
-        
-        // 批量删除预览
-        $('#btn-delete-preview').on('click', function() {
-            batchDeletePreview();
-        });
-        
-        // 批量删除
-        $('#btn-delete').on('click', function() {
-            batchDelete();
-        });
-        
-        // 当替换内容改变时，重置预览
-        $('#replace-search, #replace-value').on('input', function() {
-            if ($('#replace-preview').is(':visible')) {
-                $('#replace-preview').hide();
-                $('#btn-replace').hide();
-                $('#btn-replace-preview').show();
-            }
-        });
-        
-        // 当筛选条件改变时，重置删除预览
-        $('#filter-search, #filter-domain').on('input', function() {
-            if ($('#delete-preview').is(':visible')) {
-                $('#delete-preview').hide();
-                $('#btn-delete').hide();
-                $('#btn-delete-preview').show();
-            }
-        });
-        
         // 导出链接
         $('#btn-export').on('click', function() {
             exportLinks();
@@ -238,8 +202,10 @@
             data: {
                 action: 'zibll_dlm_get_links',
                 nonce: zibllDlm.nonce,
+                title: $('#filter-title').val(),
                 search: $('#filter-search').val(),
                 domain: $('#filter-domain').val(),
+                use_regex: $('#filter-use-regex').is(':checked'),
                 page: page,
                 per_page: perPage
             },
@@ -869,237 +835,6 @@
     }
     
     /**
-     * 批量替换预览
-     */
-    function batchReplacePreview() {
-        var search = $('#replace-search').val().trim();
-        var replace = $('#replace-value').val().trim();
-        var targetField = $('#replace-field').val();
-        var useRegex = $('#replace-regex').is(':checked');
-        
-        if (!search) {
-            showMessage('error', '查找内容不能为空');
-            return;
-        }
-        
-        showLoading();
-        
-        $.ajax({
-            url: zibllDlm.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'zibll_dlm_batch_replace_preview',
-                nonce: zibllDlm.nonce,
-                search: search,
-                replace: replace,
-                target_field: targetField,
-                use_regex: useRegex,
-                filter_search: $('#filter-search').val(),
-                filter_domain: $('#filter-domain').val()
-            },
-            success: function(response) {
-                hideLoading();
-                
-                if (response.success) {
-                    var data = response.data;
-                    var html = '<div class="zibll-dlm-preview-content">';
-                    html += '<h4>替换预览</h4>';
-                    html += '<p><strong>统计信息：</strong></p>';
-                    html += '<ul>';
-                    html += '<li>将替换 <strong>' + data.total_count + '</strong> 个链接</li>';
-                    html += '<li>涉及 <strong>' + data.affected_posts + '</strong> 篇文章</li>';
-                    html += '</ul>';
-                    
-                    if (data.preview_links && data.preview_links.length > 0) {
-                        html += '<p><strong>预览示例（前' + Math.min(10, data.preview_links.length) + '个）：</strong></p>';
-                        html += '<div class="zibll-dlm-preview-list">';
-                        data.preview_links.forEach(function(item) {
-                            var fieldName = item.field === 'name' ? '名称' : (item.field === 'more' ? '备注' : '链接');
-                            html += '<div class="zibll-dlm-preview-item">';
-                            html += '<div class="zibll-dlm-preview-title">' + escapeHtml(item.post_title) + ' <span style="font-size:12px;color:#999">[' + fieldName + ']</span></div>';
-                            html += '<div class="zibll-dlm-preview-old"><strong>原内容：</strong>' + escapeHtml(item.old_value) + '</div>';
-                            html += '<div class="zibll-dlm-preview-new"><strong>新内容：</strong>' + escapeHtml(item.new_value) + '</div>';
-                            html += '</div>';
-                        });
-                        html += '</div>';
-                    }
-                    
-                    html += '</div>';
-                    $('#replace-preview').html(html).show();
-                    $('#btn-replace').show();
-                    $('#btn-replace-preview').hide();
-                } else {
-                    showMessage('error', response.data.message || zibllDlm.strings.error);
-                }
-            },
-            error: function() {
-                hideLoading();
-                showMessage('error', zibllDlm.strings.error);
-            }
-        });
-    }
-    
-    /**
-     * 批量替换
-     */
-    function batchReplace() {
-        var search = $('#replace-search').val().trim();
-        var replace = $('#replace-value').val().trim();
-        var targetField = $('#replace-field').val();
-        var useRegex = $('#replace-regex').is(':checked');
-        
-        if (!search) {
-            showMessage('error', '查找内容不能为空');
-            return;
-        }
-        
-        showLoading();
-        
-        $.ajax({
-            url: zibllDlm.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'zibll_dlm_batch_replace',
-                nonce: zibllDlm.nonce,
-                search: search,
-                replace: replace,
-                target_field: targetField,
-                use_regex: useRegex,
-                filter_search: $('#filter-search').val(),
-                filter_domain: $('#filter-domain').val()
-            },
-            success: function(response) {
-                hideLoading();
-                
-                if (response.success) {
-                    var message = response.data.message;
-                    if (response.data.errors && response.data.errors.length > 0) {
-                        message += '<br>错误: ' + response.data.errors.join(', ');
-                    }
-                    showMessage('success', message);
-                    // 隐藏预览和确认按钮
-                    $('#replace-preview').hide();
-                    $('#btn-replace').hide();
-                    $('#btn-replace-preview').show();
-                    // 重新搜索以更新列表
-                    setTimeout(function() {
-                        searchLinks(1);
-                    }, 1000);
-                } else {
-                    showMessage('error', response.data.message || zibllDlm.strings.error);
-                }
-            },
-            error: function() {
-                hideLoading();
-                showMessage('error', zibllDlm.strings.error);
-            }
-        });
-    }
-    
-    /**
-     * 批量删除预览
-     */
-    function batchDeletePreview() {
-        showLoading();
-        
-        $.ajax({
-            url: zibllDlm.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'zibll_dlm_batch_delete_preview',
-                nonce: zibllDlm.nonce,
-                filter_search: $('#filter-search').val(),
-                filter_domain: $('#filter-domain').val()
-            },
-            success: function(response) {
-                hideLoading();
-                
-                if (response.success) {
-                    var data = response.data;
-                    var html = '<div class="zibll-dlm-preview-content">';
-                    html += '<h4>删除预览</h4>';
-                    html += '<p><strong>统计信息：</strong></p>';
-                    html += '<ul>';
-                    html += '<li>将删除 <strong style="color: #dc3232;">' + data.total_count + '</strong> 个链接</li>';
-                    html += '<li>涉及 <strong style="color: #dc3232;">' + data.affected_posts + '</strong> 篇文章</li>';
-                    html += '</ul>';
-                    
-                    if (data.preview_links && data.preview_links.length > 0) {
-                        html += '<p><strong>预览示例（前' + Math.min(10, data.preview_links.length) + '个）：</strong></p>';
-                        html += '<div class="zibll-dlm-preview-list">';
-                        data.preview_links.forEach(function(item) {
-                            html += '<div class="zibll-dlm-preview-item">';
-                            html += '<div class="zibll-dlm-preview-title">' + escapeHtml(item.post_title) + '</div>';
-                            html += '<div class="zibll-dlm-preview-link">' + escapeHtml(item.link) + '</div>';
-                            html += '</div>';
-                        });
-                        html += '</div>';
-                    }
-                    
-                    html += '<p class="zibll-dlm-warning"><strong>⚠️ 警告：</strong>此操作不可恢复，请确认后再执行！</p>';
-                    html += '</div>';
-                    $('#delete-preview').html(html).show();
-                    $('#btn-delete').show();
-                    $('#btn-delete-preview').hide();
-                } else {
-                    showMessage('error', response.data.message || zibllDlm.strings.error);
-                }
-            },
-            error: function() {
-                hideLoading();
-                showMessage('error', zibllDlm.strings.error);
-            }
-        });
-    }
-    
-    /**
-     * 批量删除
-     */
-    function batchDelete() {
-        if (!confirm('确定要删除这些链接吗？此操作不可恢复！')) {
-            return;
-        }
-        
-        showLoading();
-        
-        $.ajax({
-            url: zibllDlm.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'zibll_dlm_batch_delete',
-                nonce: zibllDlm.nonce,
-                filter_search: $('#filter-search').val(),
-                filter_domain: $('#filter-domain').val()
-            },
-            success: function(response) {
-                hideLoading();
-                
-                if (response.success) {
-                    var message = response.data.message;
-                    if (response.data.errors && response.data.errors.length > 0) {
-                        message += '<br>错误: ' + response.data.errors.join(', ');
-                    }
-                    showMessage('success', message);
-                    // 隐藏预览和确认按钮
-                    $('#delete-preview').hide();
-                    $('#btn-delete').hide();
-                    $('#btn-delete-preview').show();
-                    // 重新搜索以更新列表
-                    setTimeout(function() {
-                        searchLinks();
-                    }, 1000);
-                } else {
-                    showMessage('error', response.data.message || zibllDlm.strings.error);
-                }
-            },
-            error: function() {
-                hideLoading();
-                showMessage('error', zibllDlm.strings.error);
-            }
-        });
-    }
-    
-    /**
      * 显示加载提示
      */
     function showLoading() {
@@ -1173,6 +908,12 @@
         
         form.append($('<input>', {
             'type': 'hidden',
+            'name': 'title',
+            'value': $('#filter-title').val()
+        }));
+        
+        form.append($('<input>', {
+            'type': 'hidden',
             'name': 'search',
             'value': $('#filter-search').val()
         }));
@@ -1181,6 +922,12 @@
             'type': 'hidden',
             'name': 'domain',
             'value': $('#filter-domain').val()
+        }));
+        
+        form.append($('<input>', {
+            'type': 'hidden',
+            'name': 'use_regex',
+            'value': $('#filter-use-regex').is(':checked')
         }));
         
         $('body').append(form);
@@ -1233,14 +980,28 @@
                 
                 if (response.success) {
                     var message = response.data.message;
-                    if (response.data.errors && response.data.errors.length > 0) {
+                    var hasWarnings = response.data.warnings && response.data.warnings.length > 0;
+                    var hasErrors = response.data.errors && response.data.errors.length > 0;
+                    
+                    if (hasWarnings) {
+                        var warningList = response.data.warnings.slice(0, 10).join('<br>');
+                        if (response.data.warnings.length > 10) {
+                            warningList += '<br>...还有 ' + (response.data.warnings.length - 10) + ' 条警告';
+                        }
+                        message += '<br><br><strong style="color:#d63638">警告详情：</strong><br>' + warningList;
+                    }
+                    
+                    if (hasErrors) {
                         var errorList = response.data.errors.slice(0, 10).join('<br>');
                         if (response.data.errors.length > 10) {
                             errorList += '<br>...还有 ' + (response.data.errors.length - 10) + ' 条错误';
                         }
-                        message += '<br><br><strong>错误详情：</strong><br>' + errorList;
+                        message += '<br><br><strong style="color:#d63638">错误详情：</strong><br>' + errorList;
                     }
-                    showMessage('success', message);
+                    
+                    // 如果有警告或错误，使用警告样式；否则使用成功样式
+                    var messageType = (hasWarnings || hasErrors) ? 'error' : 'success';
+                    showMessage(messageType, message);
                     // 清空文件选择
                     $('#import-file').val('');
                 } else {
